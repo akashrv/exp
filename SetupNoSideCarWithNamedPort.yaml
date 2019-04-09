@@ -1,0 +1,79 @@
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: istioissue
+
+---
+# Client POD with instio injection
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: curl
+  name: curl
+  namespace: istioissue
+spec:
+  selector:
+    matchLabels:
+      run: curl
+  template:
+    metadata:
+      labels:
+        run: curl
+    spec:
+      containers:
+      - image: radial/busyboxplus:curl
+        name: curl
+        stdin: true
+        tty: true
+
+---
+# EnternalName service that points to the another K8s service 
+kind: Service
+apiVersion: v1
+metadata:
+  name: es-ws-kne
+  namespace: istioissue
+spec:
+  type: ExternalName
+  externalName:  my-web-server-service.istioissue.svc.cluster.local
+
+---
+#K8s service that has a port with a name
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-web-server-service
+  namespace: istioissue
+spec:
+  selector:
+    app: my-web-server
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+
+---
+# Test server deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-web-server
+  namespace: istioissue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-web-server
+  template:
+    metadata:
+      annotations:	
+        sidecar.istio.io/inject: "true"    
+      labels:
+        app: my-web-server
+    spec:
+      containers:
+        - name: web-server
+          image: github.com/exp/web-server
